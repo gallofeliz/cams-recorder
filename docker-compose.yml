@@ -1,0 +1,10 @@
+version: '3.5'
+services:
+  app:
+    #restart: unless-stopped
+    build:
+      context: .
+    ports:
+      - "8080:80"
+    environment:
+      CAMS-RECORDER_URI: rtsp://xx:xx@192.168.xx.xx/xxx

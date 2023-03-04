@@ -1,0 +1,28 @@
+{
+  "name": "cams-recorder",
+  "version": "1.0.0",
+  "description": "Camera Recorder",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gallofeliz/cams-recorder.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/gallofeliz/cams-recorder/issues"
+  },
+  "homepage": "https://github.com/gallofeliz/cams-recorder#readme",
+  "devDependencies": {
+    "@gallofeliz/typescript-transform-to-json-schema": "^0.1.2",
+    "ttypescript": "^1.5.15"
+  },
+  "dependencies": {
+    "@gallofeliz/application": "^0.1.6",
+    "@gallofeliz/http-server": "^0.1.4",
+    "@gallofeliz/run-process": "^0.1.2"
+  }
+}
