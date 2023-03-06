@@ -22,7 +22,11 @@
   },
   "dependencies": {
     "@gallofeliz/application": "^0.1.6",
-    "@gallofeliz/http-server": "^0.1.4",
-    "@gallofeliz/run-process": "^0.1.2"
+    "@gallofeliz/config": "^0.1.8",
+    "@gallofeliz/http-server": "^0.2.0",
+    "@gallofeliz/run-process": "^0.1.2",
+    "dayjs": "^1.11.7",
+    "jimp": "^0.22.7",
+    "node-onvif": "^0.1.7"
   }
 }

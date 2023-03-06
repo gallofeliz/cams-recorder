@@ -7,4 +7,10 @@ services:
     ports:
       - "8080:80"
     environment:
-      CAMS-RECORDER_URI: rtsp://xx:xx@192.168.xx.xx/xxx
+      TZ: Europe/Paris
+      CAMS-RECORDER_CAMERA_ONVIFURL: http://192.168.xx.yy:zz
+      CAMS-RECORDER_CAMERA_USER: xx
+      CAMS-RECORDER_CAMERA_PASS: yy
+
+    volumes:
+      - ./data:/data

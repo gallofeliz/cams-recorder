@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title></title>
+</head>
+<body>
+
+    Session : <span id="sessionStatus">(loading)</span>
+
+    <button onclick="startSession()">Start Session</button>
+    <button onclick="stopSession()">Stop Session</button>
+
+    <p>
+        Preview <img src="/preview" style="width: 100%" />
+    </p>
+
+</body>
+<script type="text/javascript">
+
+    fetch('/session', {headers: {accept: 'application/json'}}).then(v => v.json()).then((session) => {
+        document.querySelector('#sessionStatus').innerText = session ? 'Yes' : 'No'
+    })
+
+    async function startSession() {
+        await fetch('/session', {
+            method: 'POST'
+        })
+        window.location.reload()
+    }
+
+    async function stopSession() {
+        await fetch('/session', {
+            method: 'DELETE'
+        })
+        window.location.reload()
+    }
+
+</script>
+</html>

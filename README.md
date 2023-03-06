@@ -1,4 +1,4 @@
 # cams-recorder
 Camera Recorder
 
-Only a Proxy RTSP->image for the moment, don't use
+Project : merge https://github.com/gallofeliz/cam-recorder and https://github.com/gallofeliz/cam-records-viewer but for the moment only fits my exact need

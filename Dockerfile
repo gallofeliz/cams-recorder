@@ -12,6 +12,8 @@ RUN npx ttsc
 
 RUN npm prune --production && rm index.ts tsconfig.json package-lock.json
 
+ADD index.html ./
+
 # ------------
 
 FROM node:18-alpine
