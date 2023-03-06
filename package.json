@@ -22,11 +22,13 @@
     "ttypescript": "^1.5.15"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.3.0",
     "@gallofeliz/application": "^0.1.6",
     "@gallofeliz/config": "^0.1.8",
     "@gallofeliz/http-server": "^0.2.0",
     "@gallofeliz/run-process": "^0.1.2",
     "dayjs": "^1.11.7",
+    "flatpickr": "^4.6.13",
     "glob": "^9.2.1",
     "jimp": "^0.22.7",
     "ms": "^2.1.3",

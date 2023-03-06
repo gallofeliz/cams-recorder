@@ -171,9 +171,59 @@ runApp<Config>({
                         srcPath: __dirname + '/index.html'
                     },
                     {
+                        path: '/static',
+                        srcPath: __dirname + '/node_modules'
+                    },
+                    {
                         path: '/session',
                         async handler(_, res) {
                             res.send(!!session)
+                        }
+                    },
+                    {
+                        path: '/cameras',
+                        async handler(_, {send}) {
+                            const dirs = await glob(`*/`, {cwd: '/data'})
+
+                            send(dirs.map(dir => dir.replace('/', '')))
+                        }
+                    },
+                    {
+                        path: '/images',
+                        async handler({query}, {send}) {
+                            const from = dayjs(query.start)
+                            const to = dayjs(query.end);
+                            const nbDays = to.diff(from, 'hours') + 1;
+                            const dirsSearch: any[] = []
+                            const filesSearch = (new Array(nbDays)).fill(undefined).map((_, i) =>  {
+                                const d = from.clone().add(i, 'hours');
+                                const day = d.format('YYYY-MM-DD');
+                                if (!dirsSearch.includes(day)) {
+                                    dirsSearch.push(day)
+                                }
+                                return d.format('YYYY-MM-DDTHH')
+                            }
+                            );
+
+                            const globP = `@(${dirsSearch.join('|')})/@(${filesSearch.join('|')})*.jpg`
+                            const files = await glob(globP, {cwd: `/data/${query.camera}`});
+
+                            send(files.map(file => file.split('/')[1].split('.')[0]).sort())
+                        }
+                    },
+                    {
+                        path: '/images/:camera/:datetime.jpg',
+                        outputContentType: 'image/jpeg',
+                        async handler({params, query}, res) {
+                            const parts = [
+                                '/data',
+                                params.camera,
+                                params.datetime.split('T')[0],
+                                query.thumb ? 'thumbs' : null,
+                                params.datetime
+                            ].filter(part => part)
+
+                            await new Promise(resolve => res.sendFile(parts.join('/') + '.jpg', {root: '/'}, resolve))
                         }
                     },
                     {

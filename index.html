@@ -1,41 +1,537 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title></title>
+    <style type="text/css">
+        #viewer {
+            margin: auto;
+            position: relative;
+            background: #bbb;
+            padding: 10px;
+        }
+        #viewer #viewerimg {
+            width: 100%;
+        }
+        #frame {
+            display: block;
+            width: 100%;
+        }
+        #controls {
+            margin-top: 15px;
+            margin-bottom: 0px;
+            font-size: 30px;
+            padding-inline-start: 0px;
+            text-align: center;
+        }
+        #controls li {
+            display: inline-block;
+            cursor: pointer;
+        }
+        .hide {
+            display: none !important;
+        }
+        #loader {
+            position: absolute;
+            left: 50%;
+            top: 410px;
+            color: #ddd;
+        }
+        .calendar {
+            width: 106px;
+        }
+        #camera {
+            margin-right: 10px;
+        }
+        #speed, #step {
+            width: 36px;
+        }
+        #speed-icon {
+            margin-left: 10px;
+        }
+        #real-speed-container {
+            position: absolute;
+            bottom: 3px;
+            right: 3px;
+            color: #777;
+            font-style: italic;
+            font-size: 15px;
+        }
+        .selected {
+            font-weight: bold;
+        }
+        #size-ld, #size-hd, #size-auto {
+            cursor: pointer;
+        }
+        .fly {
+            position: absolute;
+            background: #bbb;
+            padding: 10px;
+            cursor: move;
+        }
+        #attach-detach {
+            cursor: pointer;
+            position: absolute;
+            bottom: 5px;
+            left: 5px;
+        }
+    </style>
+    <link href="static/@fortawesome/fontawesome-free/css/all.css" rel="stylesheet"> <!--load all styles -->
+    <link rel="stylesheet" type="text/css" href="static/flatpickr/dist/flatpickr.min.css">
 </head>
 <body>
-
-    Session : <span id="sessionStatus">(loading)</span>
-
-    <button onclick="startSession()">Start Session</button>
-    <button onclick="stopSession()">Stop Session</button>
-
     <p>
-        Preview <img src="/preview" style="width: 100%" />
+        Session : <span id="sessionStatus">(loading)</span>
+
+        <button onclick="startSession()">Start Session</button>
+        <button onclick="stopSession()">Stop Session</button>
+
+        <a href="/preview" target="_blank">Preview</a>
     </p>
+    <div id="viewer" class="size-auto">
+        <span id="loader" class="hide">...</span>
+        <img id="viewerimg" />
+        <div id="footer">
+            <input type="range" id="frame" name="volume" min="0" max="0">
+            <div style="text-align: center; margin-top: 10px;">
+                <span><i class="fas fa-camera"></i></span>
+                <select id="camera"></select>
+                <input type="text" id="start" class="calendar" />
+                <span><i class="fas fa-calendar-alt"></i></span>
+                <input type="text" id="end" class="calendar" />
+                <span id="speed-icon"><i class="fas fa-tachometer-alt"></i></span>
+                <input type="number" id="speed" min="1" step="5" />
+                <span style="margin-left: 10px;">
+                    <i class="fas fa-shoe-prints"></i>
+                    <input type="number" id="step" min="1" step="5" />
+                </span>
+                <span style="margin-left: 10px;">
+                    <span id="size-auto" class="selected">Auto</span>
+                    /
+                    <span id="size-ld">LD</span>
+                    /
+                    <span id="size-hd">HD</span>
+                </span>
+                <span id="attach-detach"><i class="fas fa-link"></i></span>
+            </div>
+             <ul id="controls">
+                 <li id="previous"><i class="fas fa-backward"></i></li>
+                 <li id="next"><i class="fas fa-forward"></i></li>
+                 <li id="play" class=""><i class="fas fa-play"></i></li>
+                 <li id="pause" class="hide"><i class="fas fa-pause"></i></li>
+                 <li id="reset"><i class="fas fa-stop"></i></li>
+             </ul>
+        </div>
+        <span id="real-speed-container">
+               <span id="real-speed">0</span> fps
+           </span>
 
+    </div>
+    <script type="text/javascript" src="static/dayjs/dayjs.min.js"></script>
+    <script type="text/javascript" src="static/flatpickr/dist/flatpickr.min.js"></script>
+    <script type="text/javascript">
+
+        (async () => {
+            const viewer = document.querySelector('#viewer')
+            const img = document.querySelector('#viewer img')
+            const footer = document.getElementById('footer')
+            const start = document.querySelector('#start')
+            const end = document.querySelector('#end')
+            const camera = document.querySelector('#camera')
+            const speed = document.querySelector('#speed')
+            const step = document.querySelector('#step')
+            const realSpeed = document.querySelector('#real-speed')
+            const sizeHd = document.querySelector('#size-hd')
+            const sizeLd = document.querySelector('#size-ld')
+            const sizeAuto = document.querySelector('#size-auto')
+            const attachDetach = document.querySelector('#attach-detach')
+            const frame = document.querySelector('#frame')
+            const loader = document.querySelector('#loader')
+
+            function resizeImgViewer() {
+                const viewportRect = {
+                    width: document.documentElement.clientWidth - 16,
+                    height: document.documentElement.clientHeight - 16
+                }
+
+                let footerSize = document.getElementById('footer').offsetHeight;
+
+                if (footer.classList.contains('fly')) {
+                    footerSize = 5;
+                }
+
+                const imageRatio = 1.777777778
+                const viewportRatio = viewportRect.width / viewportRect.height
+                let viewerSize;
+                if (viewportRatio >= imageRatio) {
+                    viewerSize = {
+                        height: viewportRect.height - 20
+                    }
+
+                    viewerSize.width = (viewerSize.height - footerSize - 10) * imageRatio
+
+                } else {
+                    viewerSize = {
+                        width: viewportRect.width - 20
+                    }
+
+                    viewerSize.height = (viewerSize.width / imageRatio + footerSize) + 10
+                }
+
+                viewer.style.width = viewerSize.width + 'px'
+                viewer.style.height = (viewerSize.height) + 'px'
+
+                img.style.width = (viewerSize.width) + 'px'
+                img.style.height = ((viewerSize.width)/ imageRatio) + 'px'
+            }
+
+            resizeImgViewer()
+
+            window.onresize = resizeImgViewer
+
+            attachDetach.onclick = (e) => {
+                if (!footer.classList.contains('fly')) {
+                    document.body.append(footer)
+                    footer.style.bottom = '20px'
+                    footer.style.left = '20px'
+                    footer.classList.add('fly')
+                } else {
+                    document.getElementById('viewer').append(footer)
+                    footer.classList.remove('fly')
+                }
+                resizeImgViewer()
+            }
+
+            footer.onmousedown = (e) => {
+                const targetted = e.target === footer || e.target === document.getElementById('controls');
+                if (!targetted || !footer.classList.contains('fly')) {
+                    return;
+                }
+
+
+                e.preventDefault()
+                const layer = {x: e.layerX, y: e.layerY}
+
+                document.onmousemove = (e) => {
+                    footer.style.bottom = ''
+                    footer.style.top = (e.clientY - layer.y) + 'px'
+                    footer.style.left = (e.clientX - layer.x)  + 'px'
+                }
+
+                document.onmouseup = (e) => {
+                    document.onmousemove = null;
+                    document.onmouseup = null;
+                }
+            }
+
+            sizeHd.onclick = (e) => {
+                viewer.classList.remove('size-ld')
+                viewer.classList.remove('size-auto')
+                viewer.classList.add('size-hd')
+                sizeLd.classList.remove('selected')
+                sizeAuto.classList.remove('selected')
+                sizeHd.classList.add('selected')
+                loadImage()
+            }
+
+            sizeLd.onclick = (e) => {
+                viewer.classList.add('size-ld')
+                viewer.classList.remove('size-auto')
+                viewer.classList.remove('size-hd')
+                sizeLd.classList.add('selected')
+                sizeHd.classList.remove('selected')
+                sizeAuto.classList.remove('selected')
+                loadImage()
+            }
+
+            sizeAuto.onclick = (e) => {
+                viewer.classList.add('size-auto')
+                viewer.classList.remove('size-ld')
+                viewer.classList.remove('size-hd')
+                sizeAuto.classList.add('selected')
+                sizeHd.classList.remove('selected')
+                sizeLd.classList.remove('selected')
+                loadImage()
+            }
+
+            speed.value = 25
+            step.value = 1
+
+            start.value = dayjs().startOf('day').format();
+            end.value = dayjs().format();
+
+            flatpickr(start, {
+                enableTime: true,
+                dateFormat: "Y-m-d H:i",
+                maxDate: new Date,
+                time_24hr: true
+            });
+
+            let flatpickrEndInterval;
+
+            function flatpickrEnd() {
+                function declareInterval() {
+                    flatpickrEndInterval = setInterval(() => {
+                        clearInterval(flatpickrEndInterval)
+                        flatpickrEnd()
+                    }, 1000 * 60)
+                }
+
+                flatpickr(end, {
+                    enableTime: true,
+                    dateFormat: "Y-m-d H:i",
+                    maxDate: new Date,
+                    time_24hr: true,
+                    onOpen: () => clearInterval(flatpickrEndInterval),
+                    onClose: () => declareInterval()
+                });
+            }
+
+            flatpickrEnd()
+
+            start.onchange = load
+            end.onchange = load
+            camera.onchange = load
+
+            let currentCam;
+            let images = [];
+            let i = 0;
+
+            const cameras = (await (await fetch('/cameras')).json())
+
+            cameras.forEach(cam => {
+                const opt = document.createElement('option')
+                opt.value = cam
+                opt.innerText = cam
+                camera.appendChild(opt)
+            })
+
+            let previousStart;
+            async function load(e) {
+                if (e && e.target === start) {
+                    // If start changes a lot
+                    if (Math.abs(dayjs(start.value).diff(previousStart, 'days', true)) > 1) {
+                        end.value = '';
+                        return;
+                    }
+                }
+                if (Math.abs(dayjs(start.value).diff(end.value, 'days')) >= 7) {
+                    alert('No more than 1 week'); // To avoid to down the server and others problems (Very big response)
+                    return;
+                }
+                previousStart = start.value
+                startStr = dayjs(start.value).format()
+                endStr = dayjs(end.value).format()
+                cam = camera.value
+                images = (await (await fetch('/images?camera='+encodeURIComponent(cam)+'&start='+ encodeURIComponent(startStr)+'&end='+ encodeURIComponent(endStr))).json())
+
+                if (images.length === 0) {
+                    images.push('https://as2.ftcdn.net/jpg/01/93/78/07/500_F_193780749_TNfDK6nxBjx6CxehzQUcUF8fhc8S6W9P.jpg');
+                }
+                currentCam = cam;
+                frame.max = images.length - 1;
+                i = 0;
+                loadImage()
+            }
+
+            load()
+
+            document.onkeydown = (e) => {
+                switch(e.keyCode) {
+                    case 32:
+                        if (playing) {
+                            document.querySelector('#pause').click()
+                        } else {
+                            document.querySelector('#play').click()
+                        }
+                        break;
+                    case 39:
+                        document.querySelector('#next').click()
+                        break;
+                    case 37:
+                        document.querySelector('#previous').click()
+                }
+            }
+
+            a = 1;
+            setInterval(() => {
+                if (a === 3) {
+                    a = -1;
+                }
+                loader.innerText = '.'.repeat(++a)
+            }, 250)
+
+            frame.onfocus = (e) => {
+                e.preventDefault();
+                frame.blur()
+            }
+
+            frame.onchange = (e) => {
+                i = parseInt(e.target.value, 10);
+                loadImage();
+            }
+
+            var inputTimeout;
+
+            frame.oninput = (e) => {
+                if (inputTimeout) {
+                    clearTimeout(inputTimeout);
+                }
+                inputTimeout = setTimeout(() => {
+                    i = parseInt(e.target.value, 10);
+                    loadImage();
+                }, 50)
+            }
+
+            document.querySelector('#play').onclick = () => {
+                if (!isIIncrementable()) {
+                    i=-1;
+                }
+                playing = true;
+                incrementI();
+                loadImage();
+                updatePlayPause();
+            }
+
+            document.querySelector('#pause').onclick = () => {
+                playing = false;
+                updatePlayPause()
+            }
+
+            document.querySelector('#reset').onclick = () => {
+                playing = false;
+                i = 0;
+                updatePlayPause()
+                loadImage()
+            }
+
+            document.querySelector('#previous').onclick = () => {
+                if (isIDecrementable()) {
+                    decrementI();
+                    loadImage()
+
+                }
+            }
+
+            document.querySelector('#next').onclick = () => {
+                if (isIIncrementable()) {
+                    incrementI();
+                    loadImage()
+                }
+            }
+
+            var playing = false;
+
+            function updatePlayPause() {
+                if (playing) {
+                    document.querySelector('#play').classList.add('hide')
+                    document.querySelector('#pause').classList.remove('hide')
+                } else {
+                    document.querySelector('#pause').classList.add('hide')
+                    document.querySelector('#play').classList.remove('hide')
+                }
+            }
+
+            var lastLoadTime = 0;
+
+            let loaded = []
+
+            setInterval(() => {
+                const limit = (new Date).getTime() - 1000
+                loaded = loaded.filter(v => v >= limit) // Inutil iterations for the end of the array
+                realSpeed.innerText = loaded.length
+            }, 1000)
+
+            let currentQuality;
+
+            function loadImage() {
+                const frameTime = Math.round(1/speed.value*1000);
+
+                if (lastLoadTime + frameTime > (new Date).getTime()) {
+                    setTimeout(() => loadImage(), lastLoadTime + frameTime - (new Date).getTime());
+                    return;
+                }
+                currentQuality = viewer.classList.contains('size-ld') || viewer.classList.contains('size-auto') ? 'LD' : 'HD'
+                img.src='images/' + currentCam + '/' + images[i] + '.jpg' + (currentQuality === 'LD' ? '?thumb=true' : '')
+                frame.value = i
+                loader.classList.remove('hide');
+                lastLoadTime = (new Date).getTime();
+            }
+
+            function finalizeImage() {
+                currentQuality = 'HD'
+                img.src='images/' + currentCam + '/' + images[i] + '.jpg'
+            }
+
+            function isIIncrementable() {
+                return i < images.length - 1;
+            }
+
+            function isIDecrementable() {
+                return i > 0;
+            }
+
+            function incrementI() {
+                i+= Math.min(images.length - i - 1, parseInt(step.value, 10))
+            }
+
+            function decrementI() {
+                i-= Math.min(i, parseInt(step.value, 10))
+            }
+
+            var onLoaded = function () {
+                loaded.push((new Date).getTime())
+                loader.classList.add('hide');
+                if (playing && isIIncrementable()) {
+                    incrementI()
+                    loadImage()
+                    return
+                } else if (playing) {
+                    playing = false
+                    updatePlayPause()
+                }
+                if (currentQuality === 'LD' && viewer.classList.contains('size-auto')) {
+                    finalizeImage()
+                }
+            }
+
+            var badImg = 'https://assets-global.website-files.com/6009ec8cda7f305645c9d91b/601082646d6bf4446451b0a4_6002086f72b72717ae01d954_google-doc-error-message.png';
+
+            img.onerror = function (e) {
+                console.error(e)
+                if (img.src !== badImg) {
+                    img.src = badImg
+                    return;
+                } else {
+                    onLoaded()
+                }
+            }
+
+            img.onload = onLoaded
+
+        })()
+
+        function updateSessionStatus() {
+            fetch('/session', {headers: {accept: 'application/json'}}).then(v => v.json()).then((session) => {
+                document.querySelector('#sessionStatus').innerText = session ? 'Yes' : 'No'
+            })
+        }
+
+        updateSessionStatus()
+
+        async function startSession() {
+            await fetch('/session', {
+                method: 'POST'
+            })
+            updateSessionStatus()
+        }
+
+        async function stopSession() {
+            await fetch('/session', {
+                method: 'DELETE'
+            })
+            updateSessionStatus()
+        }
+
+    </script>
 </body>
-<script type="text/javascript">
-
-    fetch('/session', {headers: {accept: 'application/json'}}).then(v => v.json()).then((session) => {
-        document.querySelector('#sessionStatus').innerText = session ? 'Yes' : 'No'
-    })
-
-    async function startSession() {
-        await fetch('/session', {
-            method: 'POST'
-        })
-        window.location.reload()
-    }
-
-    async function stopSession() {
-        await fetch('/session', {
-            method: 'DELETE'
-        })
-        window.location.reload()
-    }
-
-</script>
 </html>
