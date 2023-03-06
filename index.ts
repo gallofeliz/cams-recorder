@@ -6,17 +6,31 @@ import { tsToJsSchema } from '@gallofeliz/typescript-transform-to-json-schema'
 import { OnvifDevice } from 'node-onvif'
 import { setTimeout as wait } from 'timers/promises'
 import { createWriteStream } from 'fs'
-import { mkdir } from 'fs/promises'
+import { mkdir, unlink, readdir, rmdir } from 'fs/promises'
 import dayjs from 'dayjs'
-import { dirname } from 'path'
+import { dirname, basename } from 'path'
 import Jimp from 'jimp'
+import { globIterate, glob } from 'glob'
+import ms from 'ms'
 
 interface Config {
     camera: {
         onvifUrl: string
         user: string
         pass: string
+        /** @default 3 */
+        ptzMainPreset: string
+        /** @default 2 */
+        ptzSecretPreset: string
     }
+    /** @default 5 minutes */
+    snapshotInterval: string
+    /** @default 10 hours */
+    sessionMaxDuration: string
+    /** @default 1 day */
+    pruneInterval: string
+    /** @default 2 weeks */
+    pruneMaxAge: string
     //uri: string
     /** @default 80 */
     port: number
@@ -24,13 +38,21 @@ interface Config {
 
 class Camera {
     protected onvifDevice: OnvifDevice
+    protected user: string
+    protected pass: string
+    protected ptzMainPreset: string
+    protected ptzSecretPreset: string
 
-    constructor({onvifUrl, user, pass}: any) {
+    constructor({onvifUrl, user, pass, ptzMainPreset, ptzSecretPreset}: any) {
+        this.user = user
+        this.pass = pass
         this.onvifDevice = new OnvifDevice({
           xaddr: onvifUrl,
           user,
           pass
         })
+        this.ptzMainPreset = ptzMainPreset
+        this.ptzSecretPreset = ptzSecretPreset
     }
 
     protected async init() {
@@ -39,7 +61,10 @@ class Camera {
 
     async getRtspUrl() {
         const profile = await this.onvifDevice.getCurrentProfile()
-        return profile.stream.rtsp.replace('rtsp://', 'rtsp://viewer:viewer@')
+        return profile.stream.rtsp.replace(
+            'rtsp://',
+            'rtsp://'+encodeURIComponent(this.user)+':'+encodeURIComponent(this.pass)+'@'
+        )
     }
 
     async gotoMainPosition() {
@@ -47,7 +72,7 @@ class Camera {
 
         await this.onvifDevice.services.ptz.gotoPreset({
             ProfileToken: (await this.onvifDevice.getCurrentProfile()).token,
-            PresetToken: '3',
+            PresetToken: this.ptzMainPreset,
             Speed: { x: 0.5, y: 0.5, z: 0.5 }
         })
         await wait(8000)
@@ -58,7 +83,7 @@ class Camera {
 
         await this.onvifDevice.services.ptz.gotoPreset({
             ProfileToken: (await this.onvifDevice.getCurrentProfile()).token,
-            PresetToken: '2',
+            PresetToken: this.ptzSecretPreset,
             Speed: { x: 0.5, y: 0.5, z: 0.5 }
         })
         await wait(8000)
@@ -111,6 +136,22 @@ async function rtspToJpeg({stream, abortSignal, logger, url}: any) {
     })
 }
 
+async function prune(maxAge: number) {
+    const pruneBefore = dayjs().subtract(maxAge, 'milliseconds').format('YYYY-MM-DDTHH:mm:ss')
+    for await (const file of globIterate('/data/cam1/**/*.jpg', {nodir: true, signal: undefined}))  {
+        const date = basename(file).replace('.jpg', '')
+        if (date < pruneBefore) {
+            await unlink(file)
+        }
+    }
+
+    for (const dir of (await glob('/data/cam1/*/**/', {signal: undefined})).sort().reverse())  {
+        if ((await readdir(dir)).length === 0) {
+            await rmdir(dir)
+        }
+    }
+}
+
 runApp<Config>({
     config: {
         userProvidedConfigSchema: tsToJsSchema<Config>()
@@ -147,12 +188,12 @@ runApp<Config>({
                             session = {
                                 interval: setInterval(async () => {
                                     snapshot({logger, abortSignal, url: await camera.getRtspUrl()})
-                                }, 1000 * 60 * 5),
+                                }, ms(config.snapshotInterval)),
                                 timeout: setTimeout(async () => {
                                     clearInterval(session.interval)
                                     session = undefined
                                     await camera.gotoSecretPosition()
-                                }, 1000 * 60 * 60 * 10)
+                                }, ms(config.sessionMaxDuration))
                             }
 
                             snapshot({logger, abortSignal, url: await camera.getRtspUrl()})
@@ -183,11 +224,19 @@ runApp<Config>({
         }
     },
     // @ts-ignore
-    async run({abortSignal, api, camera}) {
+    async run({abortSignal, api, camera, config}) {
         camera.gotoSecretPosition()
+
+        const pruneInterval = setInterval(() => {
+            prune(ms(config.pruneMaxAge))
+        }, ms(config.pruneInterval))
+
+        prune(ms(config.pruneMaxAge))
+
         abortSignal.addEventListener('abort', () => {
+            clearInterval(pruneInterval)
             if (session) {
-                clearImmediate(session.interval)
+                clearInterval(session.interval)
                 clearTimeout(session.timeout)
                 session = undefined
                 camera.gotoSecretPosition()
