@@ -26,4 +26,4 @@ COPY --from=build /build ./
 
 USER nobody
 
-CMD ["node", "."]
+CMD ["node", "--no-warnings", "."]

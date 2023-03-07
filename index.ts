@@ -223,7 +223,7 @@ runApp<Config>({
                                 params.datetime
                             ].filter(part => part)
 
-                            sendFile(parts.join('/') + '.jpg', {root: '/'})
+                            await sendFile(parts.join('/') + '.jpg', {root: '/'})
                         }
                     },
                     {
