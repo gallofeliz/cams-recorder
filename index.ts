@@ -167,7 +167,7 @@ runApp<Config>({
                 port: config.port,
                 routes: [
                     {
-                        path: '/ui',
+                        path: '/',
                         srcPath: __dirname + '/index.html'
                     },
                     {
@@ -214,7 +214,7 @@ runApp<Config>({
                     {
                         path: '/images/:camera/:datetime.jpg',
                         outputContentType: 'image/jpeg',
-                        async handler({params, query}, res) {
+                        async handler({params, query}, {sendFile}) {
                             const parts = [
                                 '/data',
                                 params.camera,
@@ -223,7 +223,7 @@ runApp<Config>({
                                 params.datetime
                             ].filter(part => part)
 
-                            await new Promise(resolve => res.sendFile(parts.join('/') + '.jpg', {root: '/'}, resolve))
+                            sendFile(parts.join('/') + '.jpg', {root: '/'})
                         }
                     },
                     {
